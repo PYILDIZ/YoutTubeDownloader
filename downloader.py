@@ -3,53 +3,39 @@ from pytubefix import YouTube
 import os
 import subprocess
 
-# 1. UI Setup (Replacing tkinter)
-st.title("🎥 High-Res YouTube Downloader")
-url = st.text_input("Paste YouTube Link:", placeholder="https://www.youtube.com/watch?v=...")
+st.title("🎥 High-Res Downloader")
+url = st.text_input("Paste Link:")
 
 if url:
     try:
-        yt = YouTube(url, use_oauth=True, allow_oauth_cache=True)
-        st.write(f"**Title:** {yt.title}")
-        
-        if st.button("Download & Merge (High Res + WAV)"):
-            with st.spinner("Processing... This takes a moment."):
-                # 2. Setup paths (Temporary files on the server)
-                v_name = "temp_video.mp4"
-                a_name = "temp_audio.mp4"
-                final_name = f"{yt.title}.mkv".replace("/", "_")
+        # 1. Use 'WEB_CREATOR' - usually bypasses 403 and doesn't require OAuth login
+        yt = YouTube(url, client='WEB_CREATOR')
+        st.write(f"**Found:** {yt.title}")
 
-                # 3. Get streams
+        if st.button("Start High-Quality Download"):
+            with st.spinner("🚀 Downloading... Large files take longer!"):
+                # Setup names
+                v_file, a_file, out_file = "v.mp4", "a.mp4", f"{yt.title}.mkv"
+
+                # 2. Get the streams
+                # Note: We filter for 1080p specifically to avoid crashing the server with 4K files
                 v_stream = yt.streams.filter(only_video=True, file_extension="mp4").order_by('resolution').desc().first()
                 a_stream = yt.streams.filter(only_audio=True).order_by('abr').desc().first()
 
-                v_stream.download(filename=v_name)
-                a_stream.download(filename=a_name)
+                v_stream.download(filename=v_file)
+                a_stream.download(filename=a_file)
 
-                # 4. Merge with FFmpeg (Converts audio to high-quality PCM/WAV)
-                cmd = [
-                    'ffmpeg', '-y', 
-                    '-i', v_name, 
-                    '-i', a_name, 
-                    '-c:v', 'copy', 
-                    '-c:a', 'pcm_s16le', 
-                    final_name
-                ]
+                # 3. Merge
+                cmd = ['ffmpeg', '-y', '-i', v_file, '-i', a_file, '-c:v', 'copy', '-c:a', 'pcm_s16le', out_file]
                 subprocess.run(cmd, check=True)
 
-                # 5. Serve to user
-                with open(final_name, "rb") as f:
-                    st.download_button(
-                        label="💾 Click to Save Video",
-                        data=f,
-                        file_name=final_name,
-                        mime="video/x-matroska"
-                    )
+                # 4. Success
+                with open(out_file, "rb") as f:
+                    st.download_button("💾 Save to Device", f, file_name=out_file)
 
-                # 6. Cleanup
-                os.remove(v_name)
-                os.remove(a_name)
-                os.remove(final_name)
+                # Cleanup
+                for f in [v_file, a_file, out_file]:
+                    if os.path.exists(f): os.remove(f)
 
     except Exception as e:
-        st.error(f"Something went wrong: {e}")
+        st.error(f"Error: {e}")
