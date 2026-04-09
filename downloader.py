@@ -9,7 +9,7 @@ url = st.text_input("Paste YouTube Link:", placeholder="https://www.youtube.com/
 
 if url:
     try:
-        yt = YouTube(url)
+        yt = YouTube(url, client='WEB')
         st.write(f"**Title:** {yt.title}")
         
         if st.button("Download & Merge (High Res + WAV)"):
