@@ -1,2 +1,2 @@
-yt-dlp
+--pre yt-dlp[default]
 streamlit
